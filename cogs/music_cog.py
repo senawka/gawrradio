@@ -235,6 +235,15 @@ class Music(commands.Cog):
         latency = round(self.bot.latency * 1000)
         await ctx.send(f"Pong! Latency: {latency}ms")
 
+    @commands.command(pass_context=True)
+    async def shuffle(self, ctx):
+        if await self.user_is_connected_to_same_vc(ctx):
+            if len(self.queue) > 0:
+                random.shuffle(self.queue)
+                await ctx.send("```Queue shuffled!```")
+            else:
+                await ctx.send("```The queue is empty. Cannot shuffle.```")
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
+
