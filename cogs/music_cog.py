@@ -2,6 +2,7 @@
 
 import discord
 import asyncio
+import random
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
