@@ -10,7 +10,7 @@ class Help(commands.Cog):
     @commands.command(pass_context=True)
     async def help(self, ctx):
         message = ("```List of commands:\n"
-                   ",p - Play a song via Youtube/Soundcloud link or search by keywords. If a song is already playing, put the new one in queue. [Aliases: play]\n"
+                   ",p - Play a song via Youtube/Soundcloud link or search by keywords. If a song is already playing, put the new one in queue.\n"
                    ",s - Skip the current song. [Aliases: skip]\n"
                    ",loop - Loop the current song.\n"
                    ",queue - Show the current queue. [Aliases: q]\n"
@@ -20,10 +20,6 @@ class Help(commands.Cog):
                    ",skipall - Empty queue and skip the current song. [Aliases: clear]\n"
                    ",leave - Ask the bot to leave the current channel. [Aliases: disconnect]\n"
                    ",delete - Delete the specified amount of bot's messages from the channel (default 10). [Aliases: purge]\n"
-                   ",help - List the available commands."
+                   ",help - List the available commands.```")
 
         await ctx.send(message)
-
-
-async def setup(bot):
-    await bot.add_cog(Help(bot))
