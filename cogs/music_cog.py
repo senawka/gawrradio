@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-
 import discord
 import asyncio
 import random
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
+ITEMS_PER_PAGE = 10
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -154,7 +153,9 @@ class Music(commands.Cog):
                 return
 
         if not await self.user_is_connected_to_same_vc(ctx):
-            await ctx.send(f"```Must join the same VC as the bot! ({self.voice_channel.channel})```")
+            await ctx.send(
+                f"```Must join the same VC as the bot! ({self.voice_channel.channel})```"
+            )
             return
 
         await self.search(query, ctx)
@@ -171,13 +172,21 @@ class Music(commands.Cog):
 
     @commands.command(pass_context=True)
     async def pause(self, ctx):
-        if await self.user_is_connected_to_same_vc(ctx) and self.playing and self.voice_channel.is_playing():
+        if (
+            await self.user_is_connected_to_same_vc(ctx)
+            and self.playing
+            and self.voice_channel.is_playing()
+        ):
             await ctx.send("```Pausing.```")
             self.voice_channel.pause()
 
     @commands.command(pass_context=True)
     async def resume(self, ctx):
-        if await self.user_is_connected_to_same_vc(ctx) and self.playing and self.voice_channel.is_paused():
+        if (
+            await self.user_is_connected_to_same_vc(ctx)
+            and self.playing
+            and self.voice_channel.is_paused()
+        ):
             await ctx.send("```Resuming playback.```")
             self.voice_channel.resume()
 
@@ -191,7 +200,10 @@ class Music(commands.Cog):
 
     @commands.command(pass_context=True, aliases=["leave"])
     async def disconnect(self, ctx):
-        if await self.user_is_connected_to_same_vc(ctx) and self.voice_channel.is_connected():
+        if (
+            await self.user_is_connected_to_same_vc(ctx)
+            and self.voice_channel.is_connected()
+        ):
             await ctx.send("```Cya!```")
             self.queue = []
             self.loop = False
@@ -212,12 +224,66 @@ class Music(commands.Cog):
             await ctx.send(message)
 
     @commands.command(pass_context=True, aliases=["q"])
-    async def queue(self, ctx):
-        queue = ''
-        for i in self.queue:
-            queue += f"{str(self.queue.index(i)+1)}) {i['title']}\n"
-        output = str(f"```{queue}```")
-        await ctx.send(output)
+    async def queue(self, ctx, page=1):
+        if page < 1:
+            await ctx.send("```Invalid page number.```")
+            return
+
+        total_pages = (len(self.queue) - 1) // ITEMS_PER_PAGE + 1
+        if page > total_pages:
+            await ctx.send("```Invalid page number.```")
+            return
+
+        start_index = (page - 1) * ITEMS_PER_PAGE
+        end_index = start_index + ITEMS_PER_PAGE
+
+        queue_page = self.queue[start_index:end_index]
+        queue_list = [
+            f"{start_index + i + 1}) {item['title']}"
+            for i, item in enumerate(queue_page)
+        ]
+        queue_output = "\n".join(queue_list)
+
+        output = f"```Queue (Page {page}/{total_pages}):\n{queue_output}```"
+        message = await ctx.send(output)
+
+        if total_pages > 1:
+            await message.add_reaction("⬅️")
+            await message.add_reaction("➡️")
+
+            def check(reaction, user):
+                return user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️"]
+
+            while True:
+                try:
+                    reaction, user = await self.bot.wait_for(
+                        "reaction_add", timeout=60.0, check=check
+                    )
+                except asyncio.TimeoutError:
+                    break
+
+                if str(reaction.emoji) == "⬅️":
+                    page -= 1
+                elif str(reaction.emoji) == "➡️":
+                    page += 1
+
+                await message.remove_reaction(reaction, user)
+
+                if page < 1 or page > total_pages:
+                    break
+
+                start_index = (page - 1) * ITEMS_PER_PAGE
+                end_index = start_index + ITEMS_PER_PAGE
+
+                queue_page = self.queue[start_index:end_index]
+                queue_list = [
+                    f"{start_index + i + 1}) {item['title']}"
+                    for i, item in enumerate(queue_page)
+                ]
+                queue_output = "\n".join(queue_list)
+
+                output = f"```Queue (Page {page}/{total_pages}):\n{queue_output}```"
+                await message.edit(content=output)
 
     @commands.command(pass_context=True)
     async def loop(self, ctx):
@@ -246,4 +312,3 @@ class Music(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
-
