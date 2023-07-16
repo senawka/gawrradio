@@ -28,7 +28,7 @@ class Music(commands.Cog):
             "www.soundcloud.com",
             "soundcloud.com",
         )
-        self.now_playing_image = "https://cdn.discordapp.com/emojis/996611634904703118.gif?size=96&quality=lossless"
+        self.now_playing_image = "https://cdn.discordapp.com/emojis/996611634904703118.gif?size=64&quality=lossless"
 
     async def search(self, video, ctx):
         check = video.split("/")
@@ -107,10 +107,13 @@ class Music(commands.Cog):
         )
 
     async def send_title(self, ctx):
-        title = self.queue[0]["title"]
-        embed = discord.Embed(title="Now playing", description=title)
-        embed.set_thumbnail(url=self.now_playing_image)
-        await ctx.send(embed=embed)
+        if self.current_song:
+            title = self.current_song["title"]
+            embed = discord.Embed(title="Now playing", description=title)
+            embed.set_thumbnail(url=self.now_playing_image)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("No song is currently playing.")
 
     @staticmethod
     def get_info(parameters, link):
@@ -314,11 +317,10 @@ class Music(commands.Cog):
 
     @commands.command(pass_context=True, aliases=["np"])
     async def now_playing(self, ctx):
-        if self.current_song is not None:
+        if self.current_song:
             await self.send_title(ctx)
         else:
             await ctx.send("No song is currently playing.")
-
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
