@@ -61,7 +61,8 @@ class Music(commands.Cog):
     async def play_music(self, ctx):
         if await self.user_is_connected_to_same_vc(ctx):
             if len(self.queue) > 0 or self.loop:
-                self.playing = True
+                if not self.playing:
+                    self.playing = True
                 if not self.loop:
                     self.current_song = self.queue[0]
                     await self.send_title(ctx)
@@ -72,6 +73,10 @@ class Music(commands.Cog):
                     ),
                     after=lambda x: self.bot.loop.create_task(self.play_music(ctx)),
                 )
+            elif len(self.queue) == 0:
+                self.playing = False
+                await self.voice_channel.disconnect()
+                self.voice_channel = None
         elif len(self.queue) == 0 or not self.voice_channel.is_playing():
             self.playing = False
 
