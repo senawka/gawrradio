@@ -1,15 +1,9 @@
 {
-    "colors": {
-        "embed": 16737843,
-        "queue": 8388736,
-        "green": 65280,
-        "red": 16711680
-    },
-    "emojis": {
-        "now_playing": "",
-        "play": "",
-        "pause": "",
-        "skip": "",
-        "loop": ""
-    }
+  "colors": {
+    "primary": 16741688,
+    "secondary": 16733525,
+    "success": 65280,
+    "error": 16711680,
+    "warning": 16776960
+  }
 }
