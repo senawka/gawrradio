@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import random
+import json
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
@@ -28,7 +29,6 @@ class Music(commands.Cog):
             "www.soundcloud.com",
             "soundcloud.com",
         )
-        self.now_playing_image = "https://cdn.discordapp.com/emojis/996611634904703118.gif?size=64&quality=lossless"
 
     async def search(self, video, ctx):
         check = video.split("/")
@@ -41,14 +41,14 @@ class Music(commands.Cog):
         if link and check[-1].split("?")[0] == "playlist":
             playlist = True
         if playlist:
-            asyncio.create_task(self.load_playlist(ctx, video))
+            await self.load_playlist(ctx, video)
         elif link:
             results = await self.bot.loop.run_in_executor(
                 None, self.get_info, self.YDL_OPTIONS, video
             )
             song = {"source": results["url"], "title": results["title"]}
             self.queue.append(song)
-            await self.send_queue(ctx, [song])
+            await self.send_queue(ctx)
         else:
             source = await self.bot.loop.run_in_executor(
                 None, self.get_info, self.YDL_OPTIONS, f"ytsearch:{video}"
@@ -56,7 +56,7 @@ class Music(commands.Cog):
             results = source["entries"][0]
             song = {"source": results["url"], "title": results["title"]}
             self.queue.append(song)
-            await self.send_queue(ctx, [song])
+            await self.send_queue(ctx)
 
     async def play_music(self, ctx):
         if await self.user_is_connected_to_same_vc(ctx):
@@ -104,7 +104,7 @@ class Music(commands.Cog):
             songs.append(song)
             if not self.playing:
                 await self.play_music(ctx)
-        await self.send_queue(ctx, songs)
+        await self.send_queue(ctx)
 
     async def delete_messages(self, ctx, amount):
         await ctx.channel.purge(
@@ -114,8 +114,7 @@ class Music(commands.Cog):
     async def send_title(self, ctx):
         if self.current_song:
             title = self.current_song["title"]
-            embed = discord.Embed(title="Now playing", description=title)
-            embed.set_thumbnail(url=self.now_playing_image)
+            embed = discord.Embed(title="**Now playing**", description=title, color=discord.Color(self.bot.config["colors"]["primary"]))
             await ctx.send(embed=embed)
         else:
             await ctx.send("No song is currently playing.")
@@ -124,19 +123,24 @@ class Music(commands.Cog):
     def get_info(parameters, link):
         return YoutubeDL(parameters).extract_info(link, download=False)
 
-    @staticmethod
-    async def send_queue(ctx, songs):
-        message = ""
-        for i in songs:
-            title = i["title"]
-            message += title + "\n"
-        if message != "":
-            output = str(f"```Queued up:\n{message}```")
-            await ctx.send(output)
+    async def send_queue(self, ctx):
+        songs = self.queue
+        if not songs:
+            await ctx.send("Queue is empty.")
+            return
+
+        queue_list = [
+            f"{i + 1}) {item['title']}"
+            for i, item in enumerate(songs)
+        ]
+        queue_output = "\n".join(queue_list)
+
+        embed = discord.Embed(title="Queue", description=queue_output, color=discord.Color(self.bot.config["colors"]["secondary"]))
+        await ctx.send(embed=embed)
 
     async def user_is_connected_to_same_vc(self, ctx):
         if ctx.author.voice is None:
-            await ctx.send("```Must join a VC!```")
+            await ctx.send("Must join a VC!")
             return False
 
         if self.voice_channel is None:
@@ -147,7 +151,7 @@ class Music(commands.Cog):
     async def join_voice_channel(self, ctx):
         if self.voice_channel is None:
             if ctx.author.voice is None:
-                await ctx.send("```Must join a VC!```")
+                await ctx.send("Must join a VC!")
                 return
             self.voice_channel = await ctx.author.voice.channel.connect()
 
@@ -159,13 +163,11 @@ class Music(commands.Cog):
             if ctx.author.voice:
                 self.voice_channel = await ctx.author.voice.channel.connect()
             else:
-                await ctx.send("```Must join a VC!```")
+                await ctx.send("Must join a VC!")
                 return
 
         if not await self.user_is_connected_to_same_vc(ctx):
-            await ctx.send(
-                f"```Must join the same VC as the bot! ({self.voice_channel.channel})```"
-            )
+            await ctx.send(f"Must join the same VC as the bot! ({self.voice_channel.channel})")
             return
 
         await self.search(query, ctx)
@@ -176,7 +178,7 @@ class Music(commands.Cog):
     @commands.command(pass_context=True, aliases=["s"])
     async def skip(self, ctx):
         if await self.user_is_connected_to_same_vc(ctx) and self.playing:
-            await ctx.send("```Skipping...```")
+            await ctx.send("Skipping...")
             self.loop = False
             self.voice_channel.stop()
 
@@ -187,7 +189,7 @@ class Music(commands.Cog):
             and self.playing
             and self.voice_channel.is_playing()
         ):
-            await ctx.send("```Pausing.```")
+            await ctx.send("Pausing.")
             self.voice_channel.pause()
 
     @commands.command(pass_context=True)
@@ -197,13 +199,13 @@ class Music(commands.Cog):
             and self.playing
             and self.voice_channel.is_paused()
         ):
-            await ctx.send("```Resuming playback.```")
+            await ctx.send("Resuming playback.")
             self.voice_channel.resume()
 
     @commands.command(pass_context=True, aliases=["skipall"])
     async def clear(self, ctx):
         if await self.user_is_connected_to_same_vc(ctx) and self.playing:
-            await ctx.send("```Skipping...```")
+            await ctx.send("Skipping...")
             self.queue = []
             self.loop = False
             self.voice_channel.stop()
@@ -214,7 +216,7 @@ class Music(commands.Cog):
             await self.user_is_connected_to_same_vc(ctx)
             and self.voice_channel.is_connected()
         ):
-            await ctx.send("```Cya!```")
+            await ctx.send("Cya!")
             self.queue = []
             self.loop = False
             self.voice_channel.stop()
@@ -229,19 +231,19 @@ class Music(commands.Cog):
     async def remove(self, ctx, number):
         if await self.user_is_connected_to_same_vc(ctx):
             title = self.queue[int(number) - 1]["title"]
-            message = str(f"```Removed from queue:\n{title}```")
+            message = str(f"Removed from queue:\n{title}")
             self.queue.pop(int(number) - 1)
             await ctx.send(message)
 
     @commands.command(pass_context=True, aliases=["q"])
     async def queue(self, ctx, page=1):
         if page < 1:
-            await ctx.send("```Invalid page number.```")
+            await ctx.send("Queue is empty.")
             return
 
         total_pages = (len(self.queue) - 1) // ITEMS_PER_PAGE + 1
         if page > total_pages:
-            await ctx.send("```Invalid page number.```")
+            await ctx.send("Queue is empty.")
             return
 
         start_index = (page - 1) * ITEMS_PER_PAGE
@@ -254,8 +256,8 @@ class Music(commands.Cog):
         ]
         queue_output = "\n".join(queue_list)
 
-        output = f"```Queue (Page {page}/{total_pages}):\n{queue_output}```"
-        message = await ctx.send(output)
+        embed = discord.Embed(title=f"Queue (Page {page}/{total_pages})", description=queue_output, color=discord.Color(self.bot.config["colors"]["secondary"]))
+        message = await ctx.send(embed=embed)
 
         if total_pages > 1:
             await message.add_reaction("⬅️")
@@ -292,8 +294,8 @@ class Music(commands.Cog):
                 ]
                 queue_output = "\n".join(queue_list)
 
-                output = f"```Queue (Page {page}/{total_pages}):\n{queue_output}```"
-                await message.edit(content=output)
+                embed = discord.Embed(title=f"Queue (Page {page}/{total_pages})", description=queue_output, color=discord.Color(self.bot.config["colors"]["secondary"]))
+                await message.edit(embed=embed)
 
     @commands.command(pass_context=True)
     async def loop(self, ctx):
@@ -301,31 +303,33 @@ class Music(commands.Cog):
             self.loop = not self.loop
             if self.loop:
                 title = self.current_song["title"]
-                message = str(f"```Looping:\n{title}```")
+                message = str(f"Looping:\n{title}")
             else:
-                message = "```Unlooping.```"
-            await ctx.send(message)
+                message = "Unlooping."
+            await self.send_embed_message(ctx, "Loop Status", message, "warning")
 
     @commands.command(pass_context=True)
     async def ping(self, ctx):
         latency = round(self.bot.latency * 1000)
-        await ctx.send(f"Pong! Latency: {latency}ms")
+        await self.send_embed_message(ctx, "Pong!", f"Latency: {latency}ms", "success")
 
     @commands.command(pass_context=True)
     async def shuffle(self, ctx):
         if await self.user_is_connected_to_same_vc(ctx):
             if len(self.queue) > 0:
                 random.shuffle(self.queue)
-                await ctx.send("```Queue shuffled!```")
+                await ctx.send("Queue shuffled!")
             else:
-                await ctx.send("```The queue is empty. Cannot shuffle.```")
+                await ctx.send("The queue is empty. Cannot shuffle.")
 
     @commands.command(pass_context=True, aliases=["np"])
     async def now_playing(self, ctx):
-        if self.current_song:
-            await self.send_title(ctx)
-        else:
-            await ctx.send("No song is currently playing.")
+        await self.send_title(ctx)
+
+    async def send_embed_message(self, ctx, title, description, color_key):
+        color = discord.Color(self.bot.config["colors"][color_key])
+        embed = discord.Embed(title=title, description=description, color=color)
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
