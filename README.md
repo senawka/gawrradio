@@ -1,3 +1,5 @@
+# THIS REPO IS NOT UPDATED REGULARLY!!!
+
 1. Install the required packages directly using your distros package manager.
    - `sudo apt install python3 python3-pip ffmpeg` (Debian-based distros)
    - `sudo pacman -S python python-pip ffmpeg` (Arch-based distros)
